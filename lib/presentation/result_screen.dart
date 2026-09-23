@@ -32,7 +32,14 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(realityControllerProvider, (previous, next) {
+      if (next.phase == ShiftPhase.success && next.entry != null && mounted) {
+        setState(() => revealed = true);
+      }
+    });
     final reduce = MediaQuery.disableAnimationsOf(context);
+    final shiftState = ref.watch(realityControllerProvider);
+    final entry = shiftState.entry ?? widget.entry;
     return Scaffold(
       body: AmbientBackground(
         child: SafeArea(
@@ -44,7 +51,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                   Row(
                     children: [
                       IconButton(
-                        onPressed: () => Navigator.pop(context),
+                        onPressed: widget.onNewThought,
                         icon: const Icon(Icons.close),
                       ),
                       const Spacer(),
@@ -73,7 +80,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                                     ),
                                     const SizedBox(height: 28),
                                     Text(
-                                      '“${widget.entry.alternateText}”',
+                                      '“${entry.alternateText}”',
                                       textAlign: TextAlign.center,
                                       style: Theme.of(context)
                                           .textTheme
@@ -85,7 +92,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                                     ),
                                     const SizedBox(height: 26),
                                     Text(
-                                      widget.entry.mode.label.toUpperCase(),
+                                      entry.mode.label.toUpperCase(),
                                       style: const TextStyle(
                                         color: AppColors.muted,
                                         fontSize: 11,
@@ -128,7 +135,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                           label: const Text('COPY'),
                           onPressed: () async {
                             await Clipboard.setData(
-                              ClipboardData(text: widget.entry.alternateText),
+                              ClipboardData(text: entry.alternateText),
                             );
                             if (context.mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
@@ -143,7 +150,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                           avatar: const Icon(Icons.share_rounded, size: 17),
                           label: const Text('SHARE'),
                           onPressed: () => SharePlus.instance.share(
-                            ShareParams(text: widget.entry.alternateText),
+                            ShareParams(text: entry.alternateText),
                           ),
                         ),
                         ActionChip(
@@ -153,10 +160,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                             setState(() => revealed = false);
                             ref
                                 .read(realityControllerProvider.notifier)
-                                .generate(
-                                  widget.entry.originalText,
-                                  mode: widget.entry.mode,
-                                );
+                                .generate(entry.originalText, mode: entry.mode);
                           },
                         ),
                       ],

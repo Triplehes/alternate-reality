@@ -18,13 +18,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     with SingleTickerProviderStateMixin {
   final text = TextEditingController();
   bool hasText = false;
+  bool _resultRouteOpen = false;
   @override
   void initState() {
     super.initState();
     text.addListener(() {
-      if (hasText != text.text.trim().isNotEmpty) {
-        setState(() => hasText = !hasText);
-      }
+      setState(() => hasText = text.text.trim().isNotEmpty);
     });
   }
 
@@ -42,18 +41,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             .showSnackBar(SnackBar(content: Text(next.message!)));
       }
       if (next.phase == ShiftPhase.success && next.entry != null) {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => ResultScreen(
-              entry: next.entry!,
-              onNewThought: () {
-                Navigator.pop(context);
-                text.clear();
-                ref.read(realityControllerProvider.notifier).reset();
-              },
-            ),
-          ),
-        );
+        if (_resultRouteOpen) return;
+        _resultRouteOpen = true;
+        final navigator = Navigator.of(context);
+        navigator
+            .push(
+              MaterialPageRoute(
+                builder: (_) => ResultScreen(
+                  entry: next.entry!,
+                  onNewThought: () {
+                    ref.read(realityControllerProvider.notifier).reset();
+                    text.clear();
+                    navigator.pop();
+                  },
+                ),
+              ),
+            )
+            .whenComplete(() => _resultRouteOpen = false);
       }
     });
     final state = ref.watch(realityControllerProvider);
@@ -95,6 +99,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                       TextField(
                         key: const Key('thoughtInput'),
                         controller: text,
+                        maxLength: 600,
+                        buildCounter: (
+                          context, {
+                          required currentLength,
+                          required isFocused,
+                          required maxLength,
+                        }) => null,
                         minLines: 4,
                         maxLines: 8,
                         textInputAction: TextInputAction.newline,
