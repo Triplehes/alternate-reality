@@ -21,6 +21,32 @@ flutter pub get
 flutter run
 ```
 
+### Run in a web browser
+
+Do not double-click `web/index.html`; it is a Flutter source template and its JavaScript bundle does not exist until the web app is built. Run either:
+
+```sh
+flutter run -d chrome
+```
+
+or use the included production-style local server:
+
+```sh
+./tool/serve_web.sh
+```
+
+Then open `http://localhost:8080`. Set a different port with `PORT=9000 ./tool/serve_web.sh`.
+
+### Install on an Android phone
+
+Build an installable test APK with:
+
+```sh
+flutter build apk --release
+```
+
+Copy `build/app/outputs/flutter-apk/app-release.apk` to the phone, allow installation from the file manager when Android asks, and open the APK. The current release configuration uses the debug signing key for device testing and is not suitable for publishing to Google Play.
+
 Without an API key the app remains fully usable with a deterministic, safety-aware local fallback. To use an OpenAI-compatible backend during development:
 
 ```sh
