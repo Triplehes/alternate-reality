@@ -58,7 +58,8 @@ class RealityController extends Notifier<ShiftState> {
     state = const ShiftState(phase: ShiftPhase.generating);
     try {
       await ref.read(preferencesProvider.future);
-      final selected = mode ?? ref.read(modeProvider) ?? RealityMode.pessimistic;
+      final selected =
+          mode ?? ref.read(modeProvider) ?? RealityMode.pessimistic;
       final text = await ref
           .read(aiServiceProvider)
           .generateAlternateReality(clean, selected);

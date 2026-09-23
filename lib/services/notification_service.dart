@@ -14,9 +14,11 @@ class LocalNotificationService implements NotificationService {
     : plugin = plugin ?? FlutterLocalNotificationsPlugin();
   final FlutterLocalNotificationsPlugin plugin;
   static const id = 4107;
+  bool _initialized = false;
+
   @override
   Future<void> initialize() async {
-    if (kIsWeb) return;
+    if (kIsWeb || _initialized) return;
     await plugin.initialize(
       const InitializationSettings(
         android: AndroidInitializationSettings('@mipmap/ic_launcher'),
@@ -27,17 +29,33 @@ class LocalNotificationService implements NotificationService {
         ),
       ),
     );
+    _initialized = true;
   }
 
   @override
   Future<void> showCurrentReality(String text) async {
     if (kIsWeb) return;
     if (Platform.isAndroid) {
-      await plugin
+      final allowed = await plugin
           .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin
           >()
           ?.requestNotificationsPermission();
+      if (allowed == false) return;
+    } else if (Platform.isIOS) {
+      final allowed = await plugin
+          .resolvePlatformSpecificImplementation<
+            IOSFlutterLocalNotificationsPlugin
+          >()
+          ?.requestPermissions(alert: true, badge: true, sound: true);
+      if (allowed == false) return;
+    } else if (Platform.isMacOS) {
+      final allowed = await plugin
+          .resolvePlatformSpecificImplementation<
+            MacOSFlutterLocalNotificationsPlugin
+          >()
+          ?.requestPermissions(alert: true, badge: true, sound: true);
+      if (allowed == false) return;
     }
     await plugin.show(
       id,
@@ -52,8 +70,18 @@ class LocalNotificationService implements NotificationService {
           priority: Priority.low,
           ongoing: true,
         ),
-        iOS: DarwinNotificationDetails(),
-        macOS: DarwinNotificationDetails(),
+        iOS: DarwinNotificationDetails(
+          presentAlert: true,
+          presentBanner: true,
+          presentList: true,
+          presentSound: true,
+        ),
+        macOS: DarwinNotificationDetails(
+          presentAlert: true,
+          presentBanner: true,
+          presentList: true,
+          presentSound: true,
+        ),
         linux: LinuxNotificationDetails(),
       ),
     );

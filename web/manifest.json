@@ -1,11 +1,11 @@
 {
-    "name": "alternate_reality",
-    "short_name": "alternate_reality",
+    "name": "Alternate Reality",
+    "short_name": "Alternate Reality",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#09090B",
+    "theme_color": "#FF7058",
+    "description": "Turn a thought into its direct alternate reality.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
