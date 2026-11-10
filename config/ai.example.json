@@ -1,0 +1,4 @@
+{
+  "AI_BACKEND_URL": "http://127.0.0.1:8787",
+  "AI_BACKEND_TOKEN": "replace_with_local_development_token"
+}

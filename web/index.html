@@ -18,21 +18,38 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="Turn a thought into its direct alternate reality.">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="alternate_reality">
+  <meta name="apple-mobile-web-app-title" content="Alternate Reality">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>alternate_reality</title>
+  <meta name="theme-color" content="#09090B">
+  <title>Alternate Reality</title>
   <link rel="manifest" href="manifest.json">
+  <style>
+    html, body { margin: 0; min-height: 100%; background: #09090b; color: #f5f3f4; }
+    #app-loading {
+      position: fixed; inset: 0; display: grid; place-content: center;
+      gap: 18px; text-align: center; background: #09090b;
+      font: 600 12px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0.2em; z-index: 1;
+    }
+    #app-loading img { width: 96px; height: 96px; margin: auto; border-radius: 22px; }
+    #app-loading small { color: #9a979d; letter-spacing: 0.04em; font-weight: 400; }
+  </style>
 </head>
 <body>
+  <div id="app-loading" role="status" aria-live="polite">
+    <img src="icons/Icon-192.png" alt="">
+    <span>ALTERNATE REALITY</span>
+    <small id="loading-message">Reality is loading…</small>
+  </div>
   <!--
     You can customize the "flutter_bootstrap.js" script.
     This is useful to provide a custom configuration to the Flutter loader
@@ -42,5 +59,14 @@
     * https://docs.flutter.dev/platform-integration/web/initialization
   -->
   <script src="flutter_bootstrap.js" async></script>
+  <script>
+    if (window.location.protocol === 'file:') {
+      document.getElementById('loading-message').textContent =
+        'This app must be served over HTTP. Run tool/serve_web.sh from the project folder.';
+    }
+    window.addEventListener('flutter-first-frame', function () {
+      document.getElementById('app-loading')?.remove();
+    });
+  </script>
 </body>
 </html>
