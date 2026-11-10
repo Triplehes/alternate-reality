@@ -81,12 +81,14 @@ class BrandMark extends StatelessWidget {
     children: [
       Icon(Icons.blur_on_rounded, color: AppColors.accent, size: 19),
       SizedBox(width: 10),
-      Text(
-        'ALTERNATE REALITY',
-        style: TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 2.2,
+      Flexible(
+        child: Text(
+          'ALTERNATE REALITY',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 2.2,
+          ),
         ),
       ),
     ],
@@ -106,7 +108,6 @@ class PrimaryButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) => SizedBox(
     width: double.infinity,
-    height: 58,
     child: FilledButton.icon(
       onPressed: onPressed,
       icon: icon == null ? const SizedBox.shrink() : Icon(icon),
@@ -115,6 +116,8 @@ class PrimaryButton extends StatelessWidget {
         style: const TextStyle(fontWeight: FontWeight.w700, letterSpacing: 1.2),
       ),
       style: FilledButton.styleFrom(
+        minimumSize: const Size(0, 58),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         backgroundColor: AppColors.accent,
         foregroundColor: Colors.black,
         disabledBackgroundColor: Colors.white10,

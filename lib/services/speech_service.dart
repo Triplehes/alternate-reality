@@ -9,14 +9,20 @@ abstract interface class SpeechService {
 }
 
 class DeviceSpeechService implements SpeechService {
-  DeviceSpeechService({SpeechToText? speech})
+  DeviceSpeechService({SpeechToText? speech, this.onFinished})
     : speech = speech ?? SpeechToText();
   final SpeechToText speech;
+  final void Function()? onFinished;
   bool available = false;
   @override
   bool get isAvailable => available;
   @override
-  Future<bool> initialize() async => available = await speech.initialize();
+  Future<bool> initialize() async => available = await speech.initialize(
+    onStatus: (status) {
+      if (status == 'done' || status == 'notListening') onFinished?.call();
+    },
+    onError: (_) => onFinished?.call(),
+  );
   @override
   Future<void> startListening(void Function(String) onText) => speech.listen(
     onResult: (r) => onText(r.recognizedWords),

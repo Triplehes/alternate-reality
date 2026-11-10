@@ -1,0 +1,5 @@
+# Copy to key.properties; never commit the real file or keystore.
+storeFile=release-keystore.jks
+storePassword=replace_with_private_password
+keyAlias=alternate-reality
+keyPassword=replace_with_private_password

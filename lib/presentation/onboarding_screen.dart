@@ -13,13 +13,20 @@ class OnboardingScreen extends StatefulWidget {
 class _OnboardingScreenState extends State<OnboardingScreen> {
   final controller = PageController();
   int index = 0;
+  bool busy = false;
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
   static const pages = [
     ('YOUR THOUGHTS.', 'A different interpretation.'),
     ('SAY SOMETHING.', 'Type it, or let your voice cross over.'),
     ('SHIFT THE ANGLE.', "We'll show you another way it could be seen."),
     (
       'WELCOME TO\nTHE OTHER SIDE.',
-      'Reality was always a matter of perspective.',
+      'Daily motivation stays on your device. When you request a perspective, your thought is sent to our AI service and OpenAI. Perspectives are creative possibilities, not facts or advice.',
     ),
   ];
 
@@ -39,26 +46,34 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   onPageChanged: (value) => setState(() => index = value),
                   itemBuilder: (_, pageIndex) => Semantics(
                     label: '${pages[pageIndex].$1} ${pages[pageIndex].$2}',
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          pages[pageIndex].$1,
-                          style: Theme.of(context).textTheme.displayLarge,
+                    child: Center(
+                      child: SingleChildScrollView(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              pages[pageIndex].$1,
+                              style: Theme.of(context).textTheme.displayLarge,
+                            ),
+                            const SizedBox(height: 20),
+                            Text(
+                              pages[pageIndex].$2,
+                              style: Theme.of(context).textTheme.bodyLarge
+                                  ?.copyWith(color: AppColors.muted),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 20),
-                        Text(
-                          pages[pageIndex].$2,
-                          style: Theme.of(context).textTheme.bodyLarge
-                              ?.copyWith(color: AppColors.muted),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
               ),
-              Row(
+              Wrap(
+                spacing: 16,
+                runSpacing: 16,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   for (var dot = 0; dot < pages.length; dot++)
                     AnimatedContainer(
@@ -71,18 +86,38 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         borderRadius: BorderRadius.circular(9),
                       ),
                     ),
-                  const Spacer(),
                   FilledButton(
-                    onPressed: () async {
-                      if (index == pages.length - 1) {
-                        await widget.onComplete();
-                      } else {
-                        await controller.nextPage(
-                          duration: const Duration(milliseconds: 450),
-                          curve: Curves.easeOutCubic,
-                        );
-                      }
-                    },
+                    onPressed: busy
+                        ? null
+                        : () async {
+                            setState(() => busy = true);
+                            try {
+                              if (index == pages.length - 1) {
+                                await widget.onComplete();
+                              } else if (MediaQuery.disableAnimationsOf(
+                                context,
+                              )) {
+                                controller.jumpToPage(index + 1);
+                              } else {
+                                await controller.nextPage(
+                                  duration: const Duration(milliseconds: 450),
+                                  curve: Curves.easeOutCubic,
+                                );
+                              }
+                            } catch (_) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Could not save your progress. Please try again.',
+                                    ),
+                                  ),
+                                );
+                              }
+                            } finally {
+                              if (mounted) setState(() => busy = false);
+                            }
+                          },
                     child: Text(
                       index == pages.length - 1 ? 'GET STARTED' : 'CONTINUE',
                     ),

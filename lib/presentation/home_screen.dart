@@ -6,7 +6,9 @@ import '../core/theme.dart';
 import '../domain/reality.dart';
 import '../providers/app_providers.dart';
 import 'result_screen.dart';
+import 'preview_access.dart';
 import 'widgets.dart';
+import 'daily_motivation_card.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -62,6 +64,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     });
     final state = ref.watch(realityControllerProvider);
     final mode = ref.watch(modeProvider);
+    final ai = ref.watch(aiConfigurationProvider);
     return Scaffold(
       body: AmbientBackground(
         child: SafeArea(
@@ -69,10 +72,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             child: ListView(
               padding: const EdgeInsets.fromLTRB(24, 28, 24, 50),
               children: [
-                Row(
+                Wrap(
+                  spacing: 20,
+                  runSpacing: 10,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     const BrandMark(),
-                    const Spacer(),
                     Text(
                       'See things differently.',
                       style: TextStyle(
@@ -82,9 +87,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                     ),
                   ],
                 ),
-                const SizedBox(height: 64),
+                const SizedBox(height: 24),
+                const DailyMotivationCard(),
+                const SizedBox(height: 32),
                 Text(
-                  'Give reality\nsomething to ruin.',
+                  'One thought.\nAnother perspective.',
                   style: Theme.of(context).textTheme.displayLarge,
                 ),
                 const SizedBox(height: 16),
@@ -135,24 +142,36 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                                     ? AppColors.accent
                                     : Colors.white,
                               ),
-                              onPressed: () async {
-                                HapticFeedback.selectionClick();
-                                if (state.phase == ShiftPhase.listening) {
-                                  await ref
-                                      .read(realityControllerProvider.notifier)
-                                      .stopListening();
-                                } else {
-                                  await ref
-                                      .read(realityControllerProvider.notifier)
-                                      .listen((value) {
-                                        text.text = value;
-                                        text.selection =
-                                            TextSelection.collapsed(
-                                              offset: value.length,
-                                            );
-                                      });
-                                }
-                              },
+                              onPressed: state.phase == ShiftPhase.generating
+                                  ? null
+                                  : () async {
+                                      HapticFeedback.selectionClick();
+                                      if (state.phase == ShiftPhase.listening) {
+                                        await ref
+                                            .read(
+                                              realityControllerProvider
+                                                  .notifier,
+                                            )
+                                            .stopListening();
+                                      } else {
+                                        await ref
+                                            .read(
+                                              realityControllerProvider
+                                                  .notifier,
+                                            )
+                                            .listen((value) {
+                                              if (!mounted) return;
+                                              value = value.characters
+                                                  .take(600)
+                                                  .toString();
+                                              text.text = value;
+                                              text.selection =
+                                                  TextSelection.collapsed(
+                                                    offset: value.length,
+                                                  );
+                                            });
+                                      }
+                                    },
                             ),
                           ),
                           const SizedBox(width: 10),
@@ -179,31 +198,87 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   ),
                 ),
                 const SizedBox(height: 18),
-                SizedBox(
-                  height: 44,
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    children: [
-                      for (final item in RealityMode.values)
-                        Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: ChoiceChip(
-                            label: Text(item.label),
-                            selected: item == mode,
-                            onSelected: (_) =>
-                                ref.read(modeProvider.notifier).state = item,
-                          ),
-                        ),
-                    ],
+                const Text(
+                  'CHOOSE A PERSPECTIVE',
+                  style: TextStyle(
+                    color: AppColors.muted,
+                    fontSize: 11,
+                    letterSpacing: 1.6,
                   ),
                 ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: [
+                    for (final item in [
+                      RealityMode.positive,
+                      RealityMode.literalNegation,
+                      ...RealityMode.values.where(
+                        (m) =>
+                            m != RealityMode.positive &&
+                            m != RealityMode.literalNegation,
+                      ),
+                    ])
+                      ChoiceChip(
+                        key: ValueKey('mode-${item.name}'),
+                        label: Text(item.label),
+                        selected: item == mode,
+                        onSelected: state.phase == ShiftPhase.generating
+                            ? null
+                            : (_) async {
+                                try {
+                                  await selectMode(ref, item);
+                                } catch (_) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'Could not save your preference. Please try again.',
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                }
+                              },
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  mode.description,
+                  key: const Key('modeDescription'),
+                  style: const TextStyle(color: AppColors.muted, height: 1.5),
+                ),
+                if (!ai.isConfigured) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    ai.endpoint == null
+                        ? 'This offline preview includes daily motivation and reminders. Online perspectives will arrive in a connected update.'
+                        : 'Have an invitation? Join the private preview to explore all nine perspectives.',
+                    style: const TextStyle(
+                      color: AppColors.muted,
+                      fontSize: 13,
+                      height: 1.5,
+                    ),
+                  ),
+                  if (ai.endpoint != null)
+                    TextButton(
+                      onPressed: () => showPreviewAccess(context),
+                      child: const Text('ENTER INVITATION'),
+                    ),
+                ],
                 const SizedBox(height: 18),
                 PrimaryButton(
                   label: state.phase == ShiftPhase.generating
                       ? 'REALITY SHIFTING…'
                       : 'ALTER REALITY',
                   icon: Icons.auto_awesome_rounded,
-                  onPressed: hasText && state.phase != ShiftPhase.generating
+                  onPressed:
+                      hasText &&
+                          ai.isConfigured &&
+                          state.phase != ShiftPhase.generating &&
+                          state.phase != ShiftPhase.listening
                       ? () {
                           FocusScope.of(context).unfocus();
                           HapticFeedback.mediumImpact();

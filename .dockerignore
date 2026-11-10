@@ -1,0 +1,6 @@
+**
+!server/
+!server/*.mjs
+!server/Dockerfile
+server/*.test.mjs
+server/invite.mjs

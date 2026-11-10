@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../domain/reality.dart';
@@ -8,173 +10,150 @@ abstract interface class AIService {
   Future<String> generateAlternateReality(String input, RealityMode mode);
 }
 
-abstract final class AlternateRealityPrompt {
-  static String system(RealityMode mode) =>
-      '''You are the Alternate Reality engine. Turn the user's statement into its direct, literal negative opposite. Preserve the speaker, tense, meaning, clause order, and wording wherever possible. Negate confidence, success, ability, certainty, and positive outcomes instead of adding commentary. Example: "I will make it, I know I will make it" becomes "I will not make it, I know I won't make it." Return only the transformed statement. Never repeat or preface it with the original input. The selected tone is ${mode.label.toLowerCase()}, but literal negation is more important than creative interpretation. Do not insult the user or invent unrelated facts. Never encourage self-harm, suicide, violence, crime, abuse, threats, harassment, or dangerous activity. If the input indicates self-harm, suicide, imminent danger, or severe distress, do not negate it; respond supportively and encourage immediate contact with a trusted person or local emergency/crisis services. Keep the result concise, plain text, and under 70 words.''';
+/// The provider API key is loaded exclusively by server/server.mjs.
+class AIConfiguration {
+  const AIConfiguration({
+    this.baseUrl = const String.fromEnvironment('AI_BACKEND_URL'),
+    this.accessToken = kReleaseMode
+        ? ''
+        : const String.fromEnvironment('AI_BACKEND_TOKEN'),
+    this.allowLocalHttp = !kReleaseMode,
+  });
+  final String baseUrl;
+  final String accessToken;
+  final bool allowLocalHttp;
+
+  Uri? get endpoint {
+    final uri = Uri.tryParse(baseUrl.trim());
+    if (uri == null ||
+        uri.host.isEmpty ||
+        uri.userInfo.isNotEmpty ||
+        uri.hasQuery ||
+        uri.hasFragment) {
+      return null;
+    }
+    final local = [
+      'localhost',
+      '127.0.0.1',
+      '::1',
+      '10.0.2.2',
+    ].contains(uri.host);
+    if (uri.scheme != 'https' &&
+        !(allowLocalHttp && local && uri.scheme == 'http')) {
+      return null;
+    }
+    return uri.replace(
+      path: '${uri.path.replaceFirst(RegExp(r'/+$'), '')}/reality',
+    );
+  }
+
+  bool get isConfigured =>
+      endpoint != null &&
+      accessToken.length >= 32 &&
+      !accessToken.startsWith('replace_');
 }
 
-class OpenAICompatibleService implements AIService {
-  OpenAICompatibleService({http.Client? client})
-    : client = client ?? http.Client();
+class BackendAIService implements AIService {
+  BackendAIService({
+    http.Client? client,
+    this.configuration = const AIConfiguration(),
+    this.timeout = const Duration(seconds: 35),
+  }) : client = client ?? http.Client();
   final http.Client client;
-  static const apiKey = String.fromEnvironment('AI_API_KEY');
-  static const baseUrl = String.fromEnvironment(
-    'AI_BASE_URL',
-    defaultValue: 'https://api.openai.com/v1',
-  );
-  static const model = String.fromEnvironment(
-    'AI_MODEL',
-    defaultValue: 'gpt-4.1-mini',
-  );
+  final AIConfiguration configuration;
+  final Duration timeout;
+  void close() => client.close();
+
   @override
   Future<String> generateAlternateReality(
     String input,
     RealityMode mode,
   ) async {
-    if (apiKey.isEmpty) {
-      return LocalFallbackAIService().generateAlternateReality(input, mode);
+    final clean = input.trim();
+    if (clean.isEmpty || clean.length > 600) {
+      throw const AIServiceException(
+        'Enter a thought between 1 and 600 characters.',
+      );
     }
-    final response = await client
-        .post(
-          Uri.parse('$baseUrl/chat/completions'),
-          headers: {
-            'Authorization': 'Bearer $apiKey',
-            'Content-Type': 'application/json',
-          },
-          body: jsonEncode({
-            'model': model,
-            'temperature': .2,
-            'messages': [
-              {
-                'role': 'system',
-                'content': AlternateRealityPrompt.system(mode),
-              },
-              {'role': 'user', 'content': input},
-            ],
-          }),
-        )
-        .timeout(const Duration(seconds: 25));
-    if (response.statusCode < 200 || response.statusCode >= 300) {
+    // This limited offline safeguard provides support, never a fake AI rewrite.
+    if (RegExp(
+      r'\b(kill myself|suicide|end my life|hurt myself|harm myself|take my own life)\b',
+      caseSensitive: false,
+    ).hasMatch(clean)) {
+      return 'This thought deserves care. Please contact someone you trust now. If you may act on it or are in immediate danger, contact local emergency or crisis support.';
+    }
+    if (!configuration.isConfigured) {
+      throw const AIServiceException(
+        'AI is not connected yet. Please try again later.',
+      );
+    }
+    try {
+      final response = await client
+          .post(
+            configuration.endpoint!,
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ${configuration.accessToken}',
+            },
+            body: jsonEncode({'input': clean, 'mode': mode.name}),
+          )
+          .timeout(timeout);
+      if (response.statusCode == 401 || response.statusCode == 403) {
+        throw const AIServiceException(
+          'Your preview access could not be verified. Check your invitation in Settings or contact the person who invited you.',
+        );
+      }
+      if (response.statusCode == 429) {
+        throw const AIServiceException(
+          'You have reached a preview limit. Wait a minute and try again. Daily limits reset tomorrow (UTC).',
+        );
+      }
+      if (response.statusCode == 503) {
+        throw const AIServiceException(
+          'Perspectives are temporarily unavailable. Please try again later.',
+        );
+      }
+      if (response.statusCode == 504) {
+        throw const AIServiceException(
+          'The AI took too long to respond. Please try again.',
+        );
+      }
+      if (response.statusCode != 200) throw const AIServiceException();
+      final data = jsonDecode(response.body);
+      if (data is! Map<String, dynamic> || data['text'] is! String) {
+        throw const AIServiceException();
+      }
+      return validate(data['text'] as String);
+    } on AIServiceException {
+      rethrow;
+    } on TimeoutException {
+      throw const AIServiceException(
+        'The AI took too long to respond. Please try again.',
+      );
+    } on http.ClientException {
+      throw const AIServiceException(
+        'Cannot reach perspectives right now. Check your internet connection and try again.',
+      );
+    } catch (_) {
       throw const AIServiceException();
     }
-    final data = jsonDecode(response.body) as Map<String, Object?>;
-    final choices = data['choices'] as List<Object?>?;
-    final first = choices == null || choices.isEmpty
-        ? null
-        : choices.first as Map<String, Object?>;
-    return validate(
-      (first?['message'] as Map<String, Object?>?)?['content'] as String?,
-    );
   }
 
-  static String validate(String? value) {
-    final text = value?.trim().replaceAll(RegExp(r'^```|```$'), '');
-    if (text == null ||
-        text.isEmpty ||
+  static String validate(String value) {
+    final text = value.trim();
+    if (text.isEmpty ||
         text.length > 600 ||
-        text.startsWith('{')) {
+        RegExp(r'^[{\[]|^```').hasMatch(text)) {
       throw const AIServiceException();
     }
     return text;
   }
 }
 
-class LocalFallbackAIService implements AIService {
-  @override
-  Future<String> generateAlternateReality(
-    String input,
-    RealityMode mode,
-  ) async {
-    await Future<void>.delayed(const Duration(milliseconds: 900));
-    if (RegExp(
-      r'kill myself|suicide|end my life|hurt myself',
-      caseSensitive: false,
-    ).hasMatch(input)) {
-      return 'This thought deserves attention, not punishment. Please contact someone you trust now, and reach local emergency or crisis support if you may be in immediate danger.';
-    }
-    return LiteralNegativeEngine.transform(input);
-  }
-}
-
-/// A small, private, deterministic language layer for common positive clauses.
-/// Complex statements can still use the configured AI provider, while ordinary
-/// inputs are negated instantly without a network request or an embedded model.
-abstract final class LiteralNegativeEngine {
-  static String transform(String input) {
-    var result = input.trim();
-    if (result.isEmpty) return result;
-
-    // If the user already used an explicit negation, invert that negation first.
-    // This keeps the operation an actual opposite rather than creating doubles.
-    final negativePatterns = <(RegExp, String)>[
-      (RegExp(r"\bwon't\b", caseSensitive: false), 'will'),
-      (RegExp(r"\bcan't\b|\bcannot\b", caseSensitive: false), 'can'),
-      (RegExp(r"\bdon't\b", caseSensitive: false), 'do'),
-      (RegExp(r"\bdoesn't\b", caseSensitive: false), 'does'),
-      (RegExp(r"\bdidn't\b", caseSensitive: false), 'did'),
-      (RegExp(r"\bisn't\b", caseSensitive: false), 'is'),
-      (RegExp(r"\baren't\b", caseSensitive: false), 'are'),
-      (RegExp(r"\bwasn't\b", caseSensitive: false), 'was'),
-      (RegExp(r"\bweren't\b", caseSensitive: false), 'were'),
-      (RegExp(r"\bhaven't\b", caseSensitive: false), 'have'),
-      (RegExp(r"\bhasn't\b", caseSensitive: false), 'has'),
-      (RegExp(r"\bhadn't\b", caseSensitive: false), 'had'),
-      (RegExp(r'\bwill\s+not\b', caseSensitive: false), 'will'),
-      (RegExp(r'\bnot\s+', caseSensitive: false), ''),
-    ];
-    for (final (pattern, replacement) in negativePatterns) {
-      if (pattern.hasMatch(result)) {
-        return result.replaceAll(pattern, replacement).trim();
-      }
-    }
-
-    var changed = false;
-    result = result.replaceAllMapped(
-      RegExp(r'\b(I\s+know\s+I|i\s+know\s+i)\s+will\b'),
-      (match) {
-        changed = true;
-        return '${match.group(1)} won\'t';
-      },
-    );
-    result = result.replaceAllMapped(
-      RegExp(r"\b(I|You|We|They|He|She|It|i|you|we|they|he|she|it)\s+will\b"),
-      (match) {
-        changed = true;
-        return '${match.group(1)} will not';
-      },
-    );
-    result = result.replaceAllMapped(RegExp(r"\b(I|i)'m\b"), (match) {
-      changed = true;
-      return "${match.group(1)}'m not";
-    });
-    result = result.replaceAllMapped(
-      RegExp(
-        r'\b(am|is|are|was|were|can|could|should|would)\b',
-        caseSensitive: false,
-      ),
-      (match) {
-        changed = true;
-        return '${match.group(0)} not';
-      },
-    );
-    if (changed) return result;
-
-    final simpleClause = RegExp(
-      r'^(I|You|We|They|i|you|we|they)\s+([A-Za-z]+)(\b.*)$',
-    ).firstMatch(result);
-    if (simpleClause != null) {
-      return '${simpleClause.group(1)} do not ${simpleClause.group(2)}${simpleClause.group(3)}';
-    }
-    final thirdPerson = RegExp(r'^(He|She|It|he|she|it)\s+([A-Za-z]+)(\b.*)$')
-        .firstMatch(result);
-    if (thirdPerson != null) {
-      return '${thirdPerson.group(1)} does not ${thirdPerson.group(2)}${thirdPerson.group(3)}';
-    }
-
-    return 'This will not happen: $result';
-  }
-}
-
 class AIServiceException implements Exception {
-  const AIServiceException();
+  const AIServiceException([
+    this.message =
+        'The AI could not create a perspective this time. Please try again.',
+  ]);
+  final String message;
 }

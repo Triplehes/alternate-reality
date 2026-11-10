@@ -79,11 +79,37 @@ class HistoryScreen extends ConsumerWidget {
                                   color: Colors.red.shade900,
                                   child: const Icon(Icons.delete_outline),
                                 ),
-                                onDismissed: (_) async {
-                                  await ref
-                                      .read(repositoryProvider)
-                                      .deleteReality(item.id);
-                                  ref.invalidate(historyProvider);
+                                confirmDismiss: (_) async {
+                                  try {
+                                    await ref
+                                        .read(repositoryProvider)
+                                        .deleteReality(item.id);
+                                    if (item.isCurrent) {
+                                      ref
+                                          .read(
+                                            realityControllerProvider.notifier,
+                                          )
+                                          .reset();
+                                      await ref
+                                          .read(notificationServiceProvider)
+                                          .cancelCurrentReality();
+                                    }
+                                    ref.invalidate(historyProvider);
+                                    return true;
+                                  } catch (_) {
+                                    ref.invalidate(historyProvider);
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                'Could not finish deleting this reality. Please try again.',
+                                              ),
+                                            ),
+                                          );
+                                    }
+                                    return false;
+                                  }
                                 },
                                 child: GlassCard(
                                   padding: const EdgeInsets.all(20),
@@ -93,8 +119,6 @@ class HistoryScreen extends ConsumerWidget {
                                     children: [
                                       Text(
                                         item.originalText,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
                                         style: const TextStyle(
                                           color: AppColors.muted,
                                         ),
@@ -117,7 +141,9 @@ class HistoryScreen extends ConsumerWidget {
                                         ),
                                       ),
                                       const SizedBox(height: 16),
-                                      Row(
+                                      Wrap(
+                                        spacing: 16,
+                                        runSpacing: 8,
                                         children: [
                                           Text(
                                             item.mode.label.toUpperCase(),
@@ -127,7 +153,6 @@ class HistoryScreen extends ConsumerWidget {
                                               letterSpacing: 1.2,
                                             ),
                                           ),
-                                          const Spacer(),
                                           Text(
                                             DateFormat.yMMMd().add_jm().format(
                                               item.createdAt,

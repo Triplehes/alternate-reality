@@ -46,3 +46,22 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Local provider secrets and personal backend access configuration
+.env
+.env.*
+!.env.example
+config/*.json
+!config/*.example.json
+
+# Release secrets and generated output
+**/build/
+android/key.properties
+*.jks
+*.keystore
+*.p12
+*.mobileprovision
+server/usage*.json*
+.artifacts/
+original-manifest.json
+release/

@@ -33,7 +33,9 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
   @override
   Widget build(BuildContext context) {
     ref.listen(realityControllerProvider, (previous, next) {
-      if (next.phase == ShiftPhase.success && next.entry != null && mounted) {
+      if ((next.phase == ShiftPhase.success ||
+              next.phase == ShiftPhase.error) &&
+          mounted) {
         setState(() => revealed = true);
       }
     });
@@ -55,7 +57,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                         icon: const Icon(Icons.close),
                       ),
                       const Spacer(),
-                      const BrandMark(),
+                      const Flexible(child: BrandMark()),
                     ],
                   ),
                   Expanded(
@@ -149,19 +151,46 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                         ActionChip(
                           avatar: const Icon(Icons.share_rounded, size: 17),
                           label: const Text('SHARE'),
-                          onPressed: () => SharePlus.instance.share(
-                            ShareParams(text: entry.alternateText),
-                          ),
+                          onPressed: () async {
+                            try {
+                              final box =
+                                  context.findRenderObject() as RenderBox?;
+                              await SharePlus.instance.share(
+                                ShareParams(
+                                  text: entry.alternateText,
+                                  sharePositionOrigin: box == null
+                                      ? null
+                                      : box.localToGlobal(Offset.zero) &
+                                            box.size,
+                                ),
+                              );
+                            } catch (_) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Sharing is unavailable. Use Copy to share this perspective.',
+                                    ),
+                                  ),
+                                );
+                              }
+                            }
+                          },
                         ),
                         ActionChip(
                           avatar: const Icon(Icons.refresh_rounded, size: 17),
                           label: const Text('REGENERATE'),
-                          onPressed: () {
-                            setState(() => revealed = false);
-                            ref
-                                .read(realityControllerProvider.notifier)
-                                .generate(entry.originalText, mode: entry.mode);
-                          },
+                          onPressed: shiftState.phase == ShiftPhase.generating
+                              ? null
+                              : () {
+                                  setState(() => revealed = false);
+                                  ref
+                                      .read(realityControllerProvider.notifier)
+                                      .generate(
+                                        entry.originalText,
+                                        mode: entry.mode,
+                                      );
+                                },
                         ),
                       ],
                     ),

@@ -1,92 +1,42 @@
-# Alternate Reality
+# Alternate Reality 2.0
 
-A polished, cross-platform Flutter experience that turns a thought into a concise pessimistic, cynical, darkly funny, or uncomfortable alternate interpretation. It includes voice input, seven reality modes, an animated result experience, a single persistent current reality, local history, and platform-compliant notifications.
+A Flutter app for exploring nine perspectives on a thought, with a separate daily motivation message and reminder. Positive thinking and grammatically correct Literal Negation sit alongside Pessimistic, Cynical, Dark Humor, Worst Case, Uncomfortable Truth, Existential and Sarcastic modes.
 
-> The app is creative entertainment, not advice or prophecy. Inputs suggesting self-harm or immediate danger are routed to a supportive response instead of a negative transformation.
+## Version 2.0 preview
 
-## Screenshots
+The signed Android **Preview** app installs separately from the original app. Hosting is deliberately deferred: the included offline preview offers daily motivation, reminder settings and navigation. AI transformations require the later hosted HTTPS backend and an individual invitation. No fake transformations are shown when AI is unavailable.
 
-Place release screenshots in `docs/screenshots/`.
+- [Release, signing and future deployment](docs/RELEASE.md)
+- [Guide for friends testing the app](docs/TESTING.md)
+- [Local AI development setup](docs/AI_SETUP.md)
+- [Daily motivation and platform behavior](docs/DAILY_MOTIVATION.md)
+- [Privacy and data handling](docs/PRIVACY.md)
+- [Version 2.0 changes](CHANGELOG.md)
 
-## Requirements
+## Development
 
-- Flutter 3.47.1 or compatible stable release
-- Dart 3.13.1+
-- Xcode for iOS/macOS, Android Studio SDK for Android, and the normal Flutter desktop toolchains
-
-## Setup
+Use Flutter 3.47.1 / Dart 3.13 and Node 24. Run from this folder:
 
 ```sh
 flutter pub get
-flutter run
+flutter run -d chrome --web-port=8080
 ```
 
-### Run in a web browser
-
-Do not double-click `web/index.html`; it is a Flutter source template and its JavaScript bundle does not exist until the web app is built. Run either:
+To use AI locally, follow the AI setup guide. Put the provider key only in `server/.env`. For Android use `flutter run --flavor preview`; use `--flavor production` only for the original application identifier. Release builds require a private signing key and never fall back to debug signing.
 
 ```sh
-flutter run -d chrome
-```
-
-or use the included production-style local server:
-
-```sh
-./tool/serve_web.sh
-```
-
-Then open `http://localhost:8080`. Set a different port with `PORT=9000 ./tool/serve_web.sh`.
-
-### Install on an Android phone
-
-Build an installable test APK with:
-
-```sh
-flutter build apk --release
-```
-
-Copy `build/app/outputs/flutter-apk/app-release.apk` to the phone, allow installation from the file manager when Android asks, and open the APK. The current release configuration uses the debug signing key for device testing and is not suitable for publishing to Google Play.
-
-Without an API key the app remains fully usable with a deterministic, safety-aware local fallback. To use an OpenAI-compatible backend during development:
-
-```sh
-flutter run \
-  --dart-define=AI_API_KEY=your_development_key \
-  --dart-define=AI_BASE_URL=https://api.openai.com/v1 \
-  --dart-define=AI_MODEL=gpt-4.1-mini
-```
-
-Do not ship a production secret in a mobile or web binary: `--dart-define` values can be extracted. For production, point the provider abstraction in `lib/services/ai_service.dart` at a backend you control, keep credentials server-side, authenticate clients, and apply rate limiting. `.env.example` documents the expected names and contains no secret.
-
-## Architecture
-
-- `lib/domain`: reality entities and modes
-- `lib/data`: local repository implementation
-- `lib/services`: AI, speech, and notification abstractions/adapters
-- `lib/providers`: Riverpod state and orchestration
-- `lib/presentation`: onboarding, home, result, history, settings, and reusable visual components
-
-History is local in SharedPreferences and the latest entry is marked current. User thoughts are not printed or logged. A successful shift replaces the fixed notification ID, so the OS shows the latest reality rather than stacking messages.
-
-## Platform setup and limitations
-
-- **Android:** microphone, internet, and notification permissions are declared. Android 13+ asks for notification permission on first use. The notification uses `ongoing`; OS/device policy still controls whether it may be dismissed.
-- **iOS:** microphone and speech usage descriptions are included. iOS does not permit a permanently ongoing local notification; delivery and persistence follow system policy.
-- **macOS:** microphone usage text is included. Signing/sandbox entitlements may need adjustment for a chosen distribution profile.
-- **Windows/Linux:** package support varies with host speech engines and notification daemons. Typed input and local history always remain available.
-- **Web:** typed input, AI, storage, and UI work. The current adapter deliberately skips local notifications; browser notification/service-worker behavior should be implemented for a production web deployment. Speech availability depends on the browser.
-
-Permissions are requested only when their related feature is used.
-
-## Quality commands
-
-```sh
-dart format --output=none --set-exit-if-changed lib test
 flutter analyze
 flutter test
-flutter build macos   # or apk, ios, web, windows, linux
+node --test server/*.test.mjs
+python3 tool/build_release.py --offline
 ```
 
-## Privacy and safety
+The last command produces `build/app/outputs/flutter-apk/app-preview-release.apk` after signing is configured. To create a connected preview later, use `--config config/ai.release.json` instead of `--offline`. A release config contains only the HTTPS backend URL, never a provider key or shared access token.
 
-History remains on-device unless a future cloud feature is explicitly added. When an AI backend is configured, the submitted thought is sent to that provider for transformation. The system prompt prohibits escalation of self-harm, suicide, violence, abuse, criminal activity, threats, and dangerous instructions. Production deployments should also add server-side moderation and observability that avoids storing raw personal thoughts.
+## Data and platform scope
+
+The latest 500 history entries, selected perspective and notification preferences remain on-device. The server forwards submitted thoughts to OpenAI without recording thought text or responses. Daily messages are offline and rotate through 60 original messages. Android schedules a different message each day around the selected local time (8:00 AM by default); current-reality notifications are independent.
+
+Android is the primary friend-testing target. The web preview supports UI, typed input and connected AI but not background daily notifications; its invitation lasts for the current page session. iOS/macOS source is included but version 2.0 signing, secure storage entitlement setup and notification delivery need platform-specific validation before distributing Apple builds. Windows/Linux are not release targets for this version.
+
+Automated tests mock AI responses. They do not establish real-model grammar, tone or safety quality, or confirm physical-device notification delivery. See the testing checklist before wider distribution.

@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
@@ -15,15 +13,30 @@ class LocalNotificationService implements NotificationService {
   final FlutterLocalNotificationsPlugin plugin;
   static const id = 4107;
   bool _initialized = false;
+  bool get supported =>
+      !kIsWeb &&
+      {
+        TargetPlatform.android,
+        TargetPlatform.iOS,
+        TargetPlatform.macOS,
+      }.contains(defaultTargetPlatform);
 
   @override
   Future<void> initialize() async {
-    if (kIsWeb || _initialized) return;
+    if (!supported || _initialized) return;
     await plugin.initialize(
       const InitializationSettings(
         android: AndroidInitializationSettings('@mipmap/ic_launcher'),
-        iOS: DarwinInitializationSettings(),
-        macOS: DarwinInitializationSettings(),
+        iOS: DarwinInitializationSettings(
+          requestAlertPermission: false,
+          requestBadgePermission: false,
+          requestSoundPermission: false,
+        ),
+        macOS: DarwinInitializationSettings(
+          requestAlertPermission: false,
+          requestBadgePermission: false,
+          requestSoundPermission: false,
+        ),
         linux: LinuxInitializationSettings(
           defaultActionName: 'Open Alternate Reality',
         ),
@@ -32,31 +45,39 @@ class LocalNotificationService implements NotificationService {
     _initialized = true;
   }
 
+  Future<bool> requestPermission() async {
+    if (!supported) return false;
+    await initialize();
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      return await plugin
+              .resolvePlatformSpecificImplementation<
+                AndroidFlutterLocalNotificationsPlugin
+              >()
+              ?.requestNotificationsPermission() ??
+          false;
+    }
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      return await plugin
+              .resolvePlatformSpecificImplementation<
+                IOSFlutterLocalNotificationsPlugin
+              >()
+              ?.requestPermissions(alert: true, badge: true, sound: true) ??
+          false;
+    }
+    if (defaultTargetPlatform == TargetPlatform.macOS) {
+      return await plugin
+              .resolvePlatformSpecificImplementation<
+                MacOSFlutterLocalNotificationsPlugin
+              >()
+              ?.requestPermissions(alert: true, badge: true, sound: true) ??
+          false;
+    }
+    return true;
+  }
+
   @override
   Future<void> showCurrentReality(String text) async {
-    if (kIsWeb) return;
-    if (Platform.isAndroid) {
-      final allowed = await plugin
-          .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin
-          >()
-          ?.requestNotificationsPermission();
-      if (allowed == false) return;
-    } else if (Platform.isIOS) {
-      final allowed = await plugin
-          .resolvePlatformSpecificImplementation<
-            IOSFlutterLocalNotificationsPlugin
-          >()
-          ?.requestPermissions(alert: true, badge: true, sound: true);
-      if (allowed == false) return;
-    } else if (Platform.isMacOS) {
-      final allowed = await plugin
-          .resolvePlatformSpecificImplementation<
-            MacOSFlutterLocalNotificationsPlugin
-          >()
-          ?.requestPermissions(alert: true, badge: true, sound: true);
-      if (allowed == false) return;
-    }
+    if (kIsWeb || !await requestPermission()) return;
     await plugin.show(
       id,
       'ALTERNATE REALITY',
@@ -88,6 +109,9 @@ class LocalNotificationService implements NotificationService {
   }
 
   @override
-  Future<void> cancelCurrentReality() =>
-      kIsWeb ? Future.value() : plugin.cancel(id);
+  Future<void> cancelCurrentReality() async {
+    if (!supported) return;
+    await initialize();
+    await plugin.cancel(id);
+  }
 }

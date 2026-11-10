@@ -16,14 +16,46 @@ class SharedPreferencesRealityRepository implements RealityRepository {
   SharedPreferencesRealityRepository(this.preferences);
   final SharedPreferences preferences;
   static const key = 'reality_history_v1';
+  static const historyLimit = 500;
+  Future<void> _pending = Future.value();
+
+  Future<void> _write(Future<void> Function() work) {
+    final operation = _pending.then((_) => work());
+    _pending = operation.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace _) {},
+    );
+    return operation;
+  }
+
   @override
   Future<List<RealityEntry>> getHistory() async {
-    final result = (preferences.getStringList(key) ?? const <String>[])
-        .map(
-          (e) => RealityEntry.fromJson(jsonDecode(e) as Map<String, Object?>),
-        )
-        .toList();
-    return result..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    final result = <RealityEntry>[];
+    for (final value in preferences.getStringList(key) ?? const <String>[]) {
+      try {
+        final entry = RealityEntry.fromJson(
+          jsonDecode(value) as Map<String, Object?>,
+        );
+        if (entry.id.isNotEmpty &&
+            entry.originalText.isNotEmpty &&
+            entry.alternateText.isNotEmpty) {
+          result.add(entry);
+        }
+      } catch (_) {
+        /* One damaged record must not hide the rest of the history. */
+      }
+    }
+    result.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return result.take(historyLimit).toList();
+  }
+
+  Future<void> _save(List<RealityEntry> entries) async {
+    if (!await preferences.setStringList(
+      key,
+      entries.take(historyLimit).map((e) => jsonEncode(e.toJson())).toList(),
+    )) {
+      throw StateError('Could not save history');
+    }
   }
 
   @override
@@ -33,36 +65,32 @@ class SharedPreferencesRealityRepository implements RealityRepository {
   }
 
   @override
-  Future<void> saveReality(RealityEntry entry) async {
+  Future<void> saveReality(RealityEntry entry) => _write(() async {
     final old = await getHistory();
-    final updated = [
+    await _save([
       entry,
-      ...old.map(
-        (e) => RealityEntry(
-          id: e.id,
-          originalText: e.originalText,
-          alternateText: e.alternateText,
-          mode: e.mode,
-          createdAt: e.createdAt,
-          isCurrent: false,
-        ),
-      ),
-    ];
-    await preferences.setStringList(
-      key,
-      updated.map((e) => jsonEncode(e.toJson())).toList(),
-    );
-  }
-
+      ...old
+          .where((e) => e.id != entry.id)
+          .map(
+            (e) => RealityEntry(
+              id: e.id,
+              originalText: e.originalText,
+              alternateText: e.alternateText,
+              mode: e.mode,
+              createdAt: e.createdAt,
+              isCurrent: false,
+            ),
+          ),
+    ]);
+  });
   @override
-  Future<void> deleteReality(String id) async {
-    final h = await getHistory();
-    await preferences.setStringList(
-      key,
-      h.where((e) => e.id != id).map((e) => jsonEncode(e.toJson())).toList(),
-    );
-  }
-
+  Future<void> deleteReality(String id) => _write(
+    () async => _save((await getHistory()).where((e) => e.id != id).toList()),
+  );
   @override
-  Future<void> clearHistory() => preferences.remove(key);
+  Future<void> clearHistory() => _write(() async {
+    if (!await preferences.remove(key)) {
+      throw StateError('Could not clear history');
+    }
+  });
 }
