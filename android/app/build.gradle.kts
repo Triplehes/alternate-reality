@@ -81,6 +81,11 @@ dependencies {
 }
 
 gradle.taskGraph.whenReady {
+    val ambiguousTasks = setOf("assemble", "build", "assembleDebug", "assembleProfile", "assembleRelease", "bundle", "bundleDebug", "bundleRelease", "installDebug", "installRelease")
+    if (gradle.startParameter.taskNames.any { it.substringAfterLast(":") in ambiguousTasks }) {
+        throw GradleException("Choose an app flavor: use the Alternate Reality - Preview run configuration, or flutter run --flavor preview. For the original app ID, use --flavor production. See docs/ANDROID_STUDIO.md.")
+    }
+
     if (allTasks.any { it.name.contains("Release", ignoreCase = true) } && !releasePropertiesFile.exists()) {
         throw GradleException("Release signing is missing. Create android/key.properties using docs/RELEASE.md. Debug signing is never used for releases.")
     }

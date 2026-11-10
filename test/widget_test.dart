@@ -1,9 +1,11 @@
-import 'package:alternate_reality/data/reality_repository.dart';
-import 'package:alternate_reality/domain/reality.dart';
-import 'package:alternate_reality/presentation/home_screen.dart';
-import 'package:alternate_reality/providers/app_providers.dart';
-import 'package:alternate_reality/services/ai_service.dart';
-import 'package:alternate_reality/presentation/widgets.dart';
+import 'package:alternate_reality/core/widgets/app_widgets.dart';
+import 'package:alternate_reality/features/history/application/history_providers.dart';
+import 'package:alternate_reality/features/history/data/reality_repository.dart';
+import 'package:alternate_reality/features/perspectives/application/perspective_providers.dart';
+import 'package:alternate_reality/features/perspectives/data/ai_service.dart';
+import 'package:alternate_reality/features/perspectives/domain/reality.dart';
+import 'package:alternate_reality/features/perspectives/presentation/home_screen.dart';
+import 'package:alternate_reality/features/settings/application/settings_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';

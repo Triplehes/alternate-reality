@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:alternate_reality/domain/reality.dart';
-import 'package:alternate_reality/services/ai_service.dart';
+import 'package:alternate_reality/features/perspectives/data/ai_service.dart';
+import 'package:alternate_reality/features/perspectives/domain/reality.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';

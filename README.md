@@ -13,6 +13,10 @@ The signed Android **Preview** app installs separately from the original app. Ho
 - [Privacy and data handling](docs/PRIVACY.md)
 - [Version 2.0 changes](CHANGELOG.md)
 
+## Android Studio and project layout
+
+Use the **Alternate Reality - Preview** run configuration from the Flutter project root. The original app and Preview can coexist; both flavors use the same current source. See [Android Studio setup and stale-build fix](docs/ANDROID_STUDIO.md) and [the feature-based code map](docs/PROJECT_STRUCTURE.md).
+
 ## Development
 
 Use Flutter 3.47.1 / Dart 3.13 and Node 24. Run from this folder:

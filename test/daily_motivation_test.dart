@@ -1,13 +1,14 @@
-import 'package:alternate_reality/domain/daily_motivation.dart';
-import 'package:alternate_reality/providers/app_providers.dart';
-import 'package:alternate_reality/providers/motivation_provider.dart';
-import 'package:alternate_reality/services/daily_motivation_service.dart';
-import 'package:alternate_reality/services/notification_service.dart';
+import 'package:alternate_reality/core/storage/preferences_provider.dart';
+import 'package:alternate_reality/features/motivation/application/motivation_provider.dart';
+import 'package:alternate_reality/features/motivation/data/daily_motivation_service.dart';
+import 'package:alternate_reality/features/motivation/domain/daily_motivation.dart';
+import 'package:alternate_reality/features/notifications/data/local_notification_service.dart';
+import 'package:alternate_reality/features/settings/application/settings_providers.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class FakeDaily implements DailyMotivationService {

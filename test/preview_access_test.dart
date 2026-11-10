@@ -1,5 +1,5 @@
-import 'package:alternate_reality/providers/access_provider.dart';
-import 'package:alternate_reality/services/ai_service.dart';
+import 'package:alternate_reality/features/perspectives/data/ai_service.dart';
+import 'package:alternate_reality/features/preview_access/application/access_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';

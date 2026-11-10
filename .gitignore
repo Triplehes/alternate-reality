@@ -65,3 +65,6 @@ server/usage*.json*
 .artifacts/
 original-manifest.json
 release/
+
+# Separate Java starter created by the IDE; not part of the Flutter app.
+/AlternateReality1/

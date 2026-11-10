@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.0 maintenance — 2026-11-10
+
+- Fixed ambiguous Android build/run targets that could select a stale version 1.0 APK.
+- Added named Preview, Original App and Local AI run configurations for Android Studio.
+- Organized Dart code by feature, split shared providers and Settings cards, and documented the project layout.
+- Kept application IDs, saved history/preferences and all version 2.0 features unchanged.
+
 ## 2.0.0 — 2026-11-10
 
 - Added Positive and Literal Negation perspectives alongside the seven existing styles; each mode has its own AI instructions, including grammar and tense guidance.
